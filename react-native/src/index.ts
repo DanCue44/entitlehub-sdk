@@ -63,31 +63,79 @@ export async function getOfferings(): Promise<Offerings> {
   return eh().getOfferings();
 }
 
-/** Live store products (prices, localized titles) for the given ids, from the native store. */
-export async function getProducts(productIds: string[]): Promise<any[]> {
-  return iap().getProducts(productIds);
+/** Live store products (prices, localized titles) from the native store (expo-iap `fetchProducts`). */
+export async function getProducts(productIds: string[], type: "in-app" | "subs" | "all" = "all"): Promise<any[]> {
+  return iap().fetchProducts({ skus: productIds, type });
 }
 
 /**
  * Buy a product in one call: open the native purchase sheet, validate the receipt with EntitleHub,
  * and return the updated entitlements. Purchase + entitlement sync, the RevenueCat way.
- * Throws "purchase-cancelled" if the user backs out.
+ *
+ * expo-iap's purchase flow is event-based — the result arrives on `purchaseUpdatedListener`, not the
+ * `requestPurchase` return value — so we bridge that back into a promise here.
+ * Rejects with "purchase-cancelled" if the user backs out.
  */
 export async function purchaseProduct(
   productId: string,
   opts: { isSubscription?: boolean } = {},
 ): Promise<CustomerInfo> {
   const I = iap();
-  const result = await I.requestPurchase({ sku: productId, skus: [productId] });
-  const purchase = Array.isArray(result) ? result[0] : result;
-  if (!purchase) throw new Error("purchase-cancelled");
-  const info = await reportToEntitleHub(purchase, productId, opts.isSubscription);
-  try {
-    await I.finishTransaction({ purchase, isConsumable: false });
-  } catch {
-    /* best-effort acknowledgement with the store */
+  const isSub = Boolean(opts.isSubscription);
+
+  // Base request. Android subscriptions additionally need an offer token from the product.
+  const request: any = { apple: { sku: productId }, google: { skus: [productId] } };
+  if (isSub) {
+    try {
+      const products = await I.fetchProducts({ skus: [productId], type: "subs" });
+      const product = Array.isArray(products) ? products.find((p: any) => (p?.id ?? p?.productId) === productId) : undefined;
+      const offer = product?.subscriptionOfferDetailsAndroid?.[0] ?? product?.subscriptionOfferDetails?.[0];
+      if (offer?.offerToken) {
+        request.google = { skus: [productId], subscriptionOffers: [{ sku: productId, offerToken: offer.offerToken }] };
+      }
+    } catch {
+      /* iOS (no Android offers) or fetch failed — proceed; iOS subs don't need an offer token */
+    }
   }
-  return info;
+
+  return new Promise<CustomerInfo>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      try { updSub?.remove(); } catch { /* noop */ }
+      try { errSub?.remove(); } catch { /* noop */ }
+    };
+
+    const updSub = I.purchaseUpdatedListener(async (purchase: any) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      try {
+        const info = await reportToEntitleHub(purchase, productId, isSub);
+        try { await I.finishTransaction({ purchase, isConsumable: false }); } catch { /* best-effort ack */ }
+        resolve(info);
+      } catch (e) {
+        reject(e);
+      }
+    });
+
+    const errSub = I.purchaseErrorListener((error: any) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const code = error?.code;
+      const cancelled = code === "E_USER_CANCELLED" || code === "user-cancelled" || /cancel/i.test(String(error?.message));
+      reject(new Error(cancelled ? "purchase-cancelled" : (error?.message || "purchase-failed")));
+    });
+
+    Promise.resolve(
+      I.requestPurchase({ request, type: isSub ? "subs" : "in-app" }),
+    ).catch((e: any) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(e);
+    });
+  });
 }
 
 /** Restore the user's purchases: re-validate each with EntitleHub, then return entitlements. */
@@ -105,9 +153,9 @@ export function addCustomerInfoUpdateListener(fn: (info: CustomerInfo) => void):
   return eh().addCustomerInfoUpdateListener(fn);
 }
 
-// Map an expo-iap purchase to an EntitleHub validated report (iOS StoreKit 2 JWS / Android token).
+// Map an expo-iap Purchase to an EntitleHub validated report (iOS StoreKit 2 JWS / Android token).
 async function reportToEntitleHub(purchase: any, productId: string, isSubscription?: boolean): Promise<CustomerInfo> {
-  const jws = purchase?.jwsRepresentationIos ?? purchase?.jwsRepresentation ?? purchase?.verificationResultIos;
+  const jws = purchase?.jwsRepresentation ?? purchase?.jwsRepresentationIos;
   if (jws) return eh().reportPurchase({ signedTransaction: jws });
 
   const token = purchase?.purchaseTokenAndroid ?? purchase?.purchaseToken;

@@ -1,6 +1,6 @@
 {
   "name": "@entitlehub/react-native",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "EntitleHub for React Native & Expo — one call to purchase and unlock entitlements. Wraps expo-iap for the native store sheet and validates receipts via EntitleHub.",
   "keywords": [
     "entitlehub",
