@@ -33,6 +33,7 @@ export class EntitleHubServer {
    * Three modes (pick one):
    *   • Google (validated): { store:"play", storeProductId, purchaseToken, isSubscription }
    *   • Apple (validated):  { signedTransaction }   — store/product are read from the JWS
+   *   • Stripe (validated): { stripeSubscriptionId } — validated via your Stripe secret key
    *   • Trusted server-report: { store, storeProductId } — no store validation; only when you've
    *     already validated the receipt elsewhere.
    */
@@ -45,6 +46,7 @@ export class EntitleHubServer {
       purchase_token: purchase.purchaseToken ?? "",
       is_subscription: Boolean(purchase.isSubscription),
       signed_transaction: purchase.signedTransaction ?? "",
+      stripe_subscription_id: purchase.stripeSubscriptionId ?? "",
     });
     return new CustomerInfo(raw);
   }

@@ -2,6 +2,12 @@
 
 All notable changes to `@entitlehub/sdk`. Adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.1.3 — 2026-07-18
+
+### Added
+- `reportPurchase` accepts `stripeSubscriptionId` — EntitleHub validates the subscription against
+  your Stripe secret key (active/trialing → granted, current period end as the expiry).
+
 ## 0.1.2 — 2026-07-18
 
 ### Changed

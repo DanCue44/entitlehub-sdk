@@ -81,4 +81,9 @@ export interface PurchaseInput {
    * `storeProductId`, so a client can't forge a purchase.
    */
   signedTransaction?: string;
+  /**
+   * Stripe subscription id. When set, EntitleHub validates it against the project's Stripe
+   * secret key (active/trialing → granted, with the current period end as the expiry).
+   */
+  stripeSubscriptionId?: string;
 }

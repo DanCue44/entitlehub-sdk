@@ -1,6 +1,6 @@
 {
   "name": "@entitlehub/sdk",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "EntitleHub SDK — one entitlement API across App Store, Google Play, Stripe, and web. Works in browsers, React Native, Expo, and Node.",
   "keywords": [
     "entitlehub",
