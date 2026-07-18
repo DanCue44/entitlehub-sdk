@@ -1,0 +1,50 @@
+{
+  "name": "@entitlehub/react-native",
+  "version": "0.1.0",
+  "description": "EntitleHub for React Native & Expo — one call to purchase and unlock entitlements. Wraps expo-iap for the native store sheet and validates receipts via EntitleHub.",
+  "keywords": [
+    "entitlehub",
+    "react-native",
+    "expo",
+    "in-app-purchase",
+    "iap",
+    "subscriptions",
+    "storekit",
+    "play-billing",
+    "entitlements"
+  ],
+  "homepage": "https://entitlehub.com/docs/purchases",
+  "repository": { "type": "git", "url": "git+https://github.com/DanCue44/entitlehub-sdk.git", "directory": "react-native" },
+  "bugs": { "url": "https://github.com/DanCue44/entitlehub-sdk/issues" },
+  "license": "MIT",
+  "publishConfig": { "access": "public" },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": { "node": ">=18" },
+  "peerDependencies": {
+    "@entitlehub/sdk": ">=0.2.0",
+    "expo-iap": "*",
+    "react": ">=17"
+  },
+  "devDependencies": {
+    "@entitlehub/sdk": "file:../sdk",
+    "tsup": "^8.0.0",
+    "typescript": "^5.9.3"
+  }
+}

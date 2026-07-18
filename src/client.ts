@@ -1,6 +1,6 @@
 import { CustomerInfo } from "./customer-info.js";
 import { EntitleHubError, request, type HttpOptions } from "./http.js";
-import type { CheckResult, CustomerInfoResponse, Offerings } from "./types.js";
+import type { CheckResult, CustomerInfoResponse, Offerings, Store } from "./types.js";
 
 export interface EntitleHubOptions {
   /** Your publishable key (pk_live_… / pk_test_…). Client-safe. */
@@ -91,6 +91,38 @@ export class EntitleHub {
   /** The project's entitlements + products — for building a paywall. */
   async getOfferings(): Promise<Offerings> {
     return request<Offerings>(this.http, "GET", "/offerings");
+  }
+
+  /**
+   * Report a VALIDATED store purchase for the current user and return the updated entitlements.
+   * A publishable key can only do validated reports (a forged receipt fails validation):
+   *   • Google: { store: "play", storeProductId, purchaseToken, isSubscription: true }
+   *   • Apple:  { signedTransaction }
+   *   • Stripe: { stripeSubscriptionId }
+   * Updates the cache and notifies listeners.
+   */
+  async reportPurchase(purchase: {
+    store?: Store;
+    storeProductId?: string;
+    purchaseToken?: string;
+    isSubscription?: boolean;
+    signedTransaction?: string;
+    stripeSubscriptionId?: string;
+    isSandbox?: boolean;
+  }): Promise<CustomerInfo> {
+    const raw = await request<CustomerInfoResponse>(this.http, "POST", `/subscribers/${encodeURIComponent(this.appUserId)}/purchases`, {
+      store: purchase.store ?? "",
+      store_product_id: purchase.storeProductId ?? "",
+      is_sandbox: Boolean(purchase.isSandbox),
+      purchase_token: purchase.purchaseToken ?? "",
+      is_subscription: Boolean(purchase.isSubscription),
+      signed_transaction: purchase.signedTransaction ?? "",
+      stripe_subscription_id: purchase.stripeSubscriptionId ?? "",
+    });
+    const info = new CustomerInfo(raw);
+    this.cached = { info, at: Date.now() };
+    for (const l of this.listeners) { try { l(info); } catch { /* listener errors never break the SDK */ } }
+    return info;
   }
 
   /** Subscribe to CustomerInfo refreshes. Returns an unsubscribe function. */

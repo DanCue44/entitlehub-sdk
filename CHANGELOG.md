@@ -2,6 +2,16 @@
 
 All notable changes to `@entitlehub/sdk`. Adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.0 — 2026-07-18
+
+### Added
+- Client `EntitleHub.reportPurchase(...)` — report a **validated** purchase (Apple JWS / Google
+  token / Stripe subscription) directly from the app with your publishable key; updates the cache
+  and notifies listeners. Validation makes a forged receipt impossible, so no secret key is needed
+  on the client. (The trusted server-report mode still requires a secret key.)
+- Powers the new [`@entitlehub/react-native`](https://www.npmjs.com/package/@entitlehub/react-native)
+  purchase SDK.
+
 ## 0.1.3 — 2026-07-18
 
 ### Added
