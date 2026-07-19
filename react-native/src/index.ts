@@ -31,10 +31,21 @@ export interface ConfigureOptions {
   appUserId: string;
   /** Override the API base (self-host). */
   baseUrl?: string;
+  /**
+   * The in-app-purchase module to use. Must implement the OpenIAP API (`initConnection`,
+   * `fetchProducts`, `requestPurchase`, `purchaseUpdatedListener`, `purchaseErrorListener`,
+   * `finishTransaction`, `getAvailablePurchases`). Defaults to `expo-iap`.
+   *
+   * Pass your own if you need a specific version or a different OpenIAP-compatible library, e.g.
+   * `iap: require("expo-iap")` with a pinned version, or `react-native-iap`. Useful to work around
+   * a native issue in a particular store-library version without changing this SDK.
+   */
+  iap?: unknown;
 }
 
 /** Configure EntitleHub and open the store connection. Call once at startup (after your own login). */
 export async function configureEntitleHub(opts: ConfigureOptions): Promise<void> {
+  if (opts.iap) _iap = opts.iap;
   client = new EntitleHub({ apiKey: opts.apiKey, appUserId: opts.appUserId, baseUrl: opts.baseUrl });
   try {
     await iap().initConnection();

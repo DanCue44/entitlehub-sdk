@@ -57,6 +57,28 @@ customer info. Renewals/refunds stay current via
 
 Full guide: **[entitlehub.com/docs/purchases](https://entitlehub.com/docs/purchases)**.
 
+## Choosing / pinning the store library
+
+The on-device purchase runs through **expo-iap** (OpenIAP). That native layer is the store
+library's responsibility, not EntitleHub's — and a given version can have platform-specific native
+bugs. If you hit a **native IAP crash** (e.g. an `EXC_BAD_ACCESS` in the store module), it's the
+store library, not this SDK or your app code, and no JS change can catch a native exception thrown
+off the JS thread.
+
+Two levers, both without changing this SDK:
+
+- **Pin a working version:** `npm install expo-iap@<version>` — this package uses whatever `expo-iap`
+  is installed (peer dependency).
+- **Supply your own module:** pass any OpenIAP-compatible library to `configureEntitleHub`:
+  ```ts
+  await configureEntitleHub({ apiKey, appUserId, iap: require("expo-iap") }); // or react-native-iap
+  ```
+
+Fully decoupled fallback: skip this package and use **[`@entitlehub/sdk`](https://www.npmjs.com/package/@entitlehub/sdk)**
+directly — open the purchase with *any* billing library you've verified on your target OS, then call
+`eh.reportPurchase({ signedTransaction | purchaseToken })`. See
+[Purchases → manual](https://entitlehub.com/docs/purchases).
+
 > Requires a development build (Expo Go has no in-app-purchase native module). The entitlement layer
 > is [`@entitlehub/sdk`](https://www.npmjs.com/package/@entitlehub/sdk); this package adds the
 > purchase flow on top.
