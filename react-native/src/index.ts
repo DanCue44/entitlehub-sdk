@@ -1,26 +1,42 @@
 import { EntitleHub } from "@entitlehub/sdk";
 import type { CustomerInfo, Offerings } from "@entitlehub/sdk";
 
-// `require` is ambient in React Native (Metro) and Node, declare it so this builds without @types/node.
-declare const require: (module: string) => any;
-
-// expo-iap is a peer dependency, lazily required so this package builds without it and gives a clear
-// error at runtime if it's missing.
+// expo-iap is loaded with a dynamic import(), never require().
+//
+// This package is bundled by Metro, which collects a module's dependencies by reading literal
+// require("…") and import("…") calls in the shipped code. In the ESM build, esbuild rewrites
+// require() into its own __require shim, which Metro cannot see: expo-iap was left out of the
+// bundle entirely, and the first call threw "Requiring unknown module expo-iap". React Native tears
+// the whole UI down on that, so the app went black before the store sheet could open (0.1.7).
+// import() survives the ESM build as a literal, so Metro resolves and bundles expo-iap again.
 type ExpoIap = any;
 let _iap: ExpoIap | undefined;
-function iap(): ExpoIap {
+
+async function loadIap(): Promise<ExpoIap> {
   if (_iap) return _iap;
+  let mod: any;
   try {
-    _iap = require("expo-iap");
+    mod = await import("expo-iap");
   } catch {
     throw new Error("@entitlehub/react-native needs 'expo-iap'. Install it with:  npx expo install expo-iap");
   }
+  // Interop: a CJS module arrives as the namespace itself under some bundlers, and under `.default`
+  // in others. Pick whichever half actually carries the OpenIAP API.
+  _iap = typeof mod?.initConnection === "function" ? mod : (mod?.default ?? mod);
+  if (typeof _iap?.initConnection !== "function") {
+    throw new Error("@entitlehub/react-native: the 'expo-iap' module did not load correctly (no initConnection). Check that expo-iap is installed and its version supports the OpenIAP API.");
+  }
+  return _iap;
+}
+
+function iap(): ExpoIap {
+  if (!_iap) throw new Error("Call configureEntitleHub({ apiKey, appUserId }) before using EntitleHub purchases.");
   return _iap;
 }
 
 // Kept in sync with package.json on release; reported to EntitleHub so the dashboard can flag an
 // out-of-date SDK instead of the customer discovering it via a bug that's already fixed.
-const RN_SDK_VERSION = "0.1.7";
+const RN_SDK_VERSION = "0.1.8";
 
 let client: EntitleHub | undefined;
 function eh(): EntitleHub {
@@ -40,9 +56,8 @@ export interface ConfigureOptions {
    * `fetchProducts`, `requestPurchase`, `purchaseUpdatedListener`, `purchaseErrorListener`,
    * `finishTransaction`, `getAvailablePurchases`). Defaults to `expo-iap`.
    *
-   * Pass your own if you need a specific version or a different OpenIAP-compatible library, e.g.
-   * `iap: require("expo-iap")` with a pinned version, or `react-native-iap`. Useful to work around
-   * a native issue in a particular store-library version without changing this SDK.
+   * Optional. Pass your own only to pin a specific version or to use a different OpenIAP-compatible
+   * library (e.g. `react-native-iap`); expo-iap is loaded for you otherwise.
    */
   iap?: unknown;
 }
@@ -50,6 +65,7 @@ export interface ConfigureOptions {
 /** Configure EntitleHub and open the store connection. Call once at startup (after your own login). */
 export async function configureEntitleHub(opts: ConfigureOptions): Promise<void> {
   if (opts.iap) _iap = opts.iap;
+  else await loadIap(); // before the try below: a missing store library must not be swallowed
   client = new EntitleHub({
     apiKey: opts.apiKey,
     appUserId: opts.appUserId,

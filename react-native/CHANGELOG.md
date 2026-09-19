@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.8 (2026-09-19)
+
+### Fixed
+- **Black screen on launch: "Requiring unknown module expo-iap".** The SDK loaded `expo-iap` with
+  `require()`. Metro decides what to bundle by reading literal `require("…")` / `import("…")` calls,
+  and the ESM build rewrote that call into esbuild's `__require` shim, which Metro cannot see. So
+  `expo-iap` was never put in the bundle, the first call threw, and React Native tore the UI down
+  with it, before the store sheet ever opened. It is now loaded with `import("expo-iap")`, which
+  survives the build as a literal. Verified by bundling a real Expo app: with 0.1.7 the store
+  library is absent from the bundle, with 0.1.8 it is there.
+- The module now loads while `configureEntitleHub()` runs, so a missing or broken `expo-iap` raises
+  a clear error there instead of being swallowed by the store-connection catch, and handles CJS
+  interop (module namespace or `.default`).
+
+### Changed
+- `configureEntitleHub({ iap })` is no longer a workaround for the bug above, just the way to pin an
+  exact module instance or use another OpenIAP-compatible library.
+
 ## 0.1.7 (2026-07-22)
 
 ### Fixed

@@ -69,9 +69,12 @@ Two levers, both without changing this SDK:
 
 - **Pin a working version:** `npm install expo-iap@<version>`, this package uses whatever `expo-iap`
   is installed (peer dependency).
-- **Supply your own module:** pass any OpenIAP-compatible library to `configureEntitleHub`:
+- **Supply your own module:** pass any OpenIAP-compatible library to `configureEntitleHub`. You do
+  not need this to use `expo-iap`, which is loaded for you; it is for pinning an exact instance or
+  using a different library:
   ```ts
-  await configureEntitleHub({ apiKey, appUserId, iap: require("expo-iap") }); // or react-native-iap
+  import * as iap from "expo-iap"; // or react-native-iap
+  await configureEntitleHub({ apiKey, appUserId, iap });
   ```
 
 Fully decoupled fallback: skip this package and use **[`@entitlehub/sdk`](https://www.npmjs.com/package/@entitlehub/sdk)**

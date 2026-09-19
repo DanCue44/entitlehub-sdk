@@ -1,6 +1,6 @@
 {
   "name": "@entitlehub/react-native",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "EntitleHub for React Native & Expo, one call to purchase and unlock entitlements. Wraps expo-iap for the native store sheet and validates receipts via EntitleHub.",
   "keywords": [
     "entitlehub",
@@ -47,6 +47,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean",
     "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test \"test/*.test.mjs\"",
     "prepublishOnly": "npm run build"
   },
   "engines": {
