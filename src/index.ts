@@ -2,6 +2,21 @@ export { EntitleHub, type EntitleHubOptions, type CustomerInfoListener, type Fet
 export { EntitleHubServer, type EntitleHubServerOptions } from "./server.js";
 export { CustomerInfo } from "./customer-info.js";
 export { EntitleHubError } from "./http.js";
+export { EntitlementsApi, ProductsApi, OfferingsApi } from "./catalog.js";
+export type {
+  ProductType,
+  Duration,
+  ProductRef,
+  CatalogEntitlement,
+  CatalogProduct,
+  CatalogOffering,
+  CatalogPackage,
+  ListedOffering,
+  Deleted,
+  CreateEntitlementInput,
+  CreateProductInput,
+  PackageInput,
+} from "./catalog.js";
 export type {
   Store,
   EntitlementStatus,

@@ -1,23 +1,37 @@
 import { CustomerInfo } from "./customer-info.js";
 import { EntitleHubError, request, type HttpOptions } from "./http.js";
 import type { CheckResult, CustomerInfoResponse, PurchaseInput } from "./types.js";
+import { EntitlementsApi, OfferingsApi, ProductsApi } from "./catalog.js";
 
 export interface EntitleHubServerOptions {
-  /** Your secret key (sk_live_… / sk_test_…). SERVER ONLY — never ship this to a client. */
+  /** Your secret key (sk_live_… / sk_test_…). SERVER ONLY, never ship this to a client. */
   apiKey: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
 }
 
 /**
- * The server-side EntitleHub SDK — report purchases and grant entitlements from your backend.
+ * The server-side EntitleHub SDK: report purchases and grant entitlements from your backend.
  * Keep this on your server; it uses a secret key.
  *
  *   const eh = new EntitleHubServer({ apiKey: process.env.ENTITLEHUB_SECRET_KEY! });
  *   await eh.reportPurchase(userId, { store: "app_store", storeProductId: "pro_monthly" });
+ *
+ * Manage the catalog from code too (every create has an `ensure` twin that returns the existing
+ * row instead of failing, so a setup script can run on every deploy):
+ *
+ *   await eh.entitlements.ensure({ key: "pro", name: "Pro" });
+ *   await eh.products.ensure({ store: "stripe", storeProductId: "price_1Q…", type: "subscription",
+ *                              duration: "P1M", priceMicros: 9_990_000, entitlements: ["pro"] });
  */
 export class EntitleHubServer {
   private http: HttpOptions;
+  /** Catalog API: entitlements. */
+  readonly entitlements: EntitlementsApi;
+  /** Catalog API: products and their entitlement mappings. */
+  readonly products: ProductsApi;
+  /** Catalog API: paywall offerings and packages. */
+  readonly offerings: OfferingsApi;
 
   constructor(opts: EntitleHubServerOptions) {
     if (!opts.apiKey) throw new EntitleHubError("apiKey is required.", 0, "config");
@@ -25,6 +39,9 @@ export class EntitleHubServer {
       throw new EntitleHubError("EntitleHubServer needs a secret (sk_) key. For client reads, use the EntitleHub class with a pk_ key.", 0, "config");
     }
     this.http = { baseUrl: opts.baseUrl ?? "https://entitlehub.com/v1", apiKey: opts.apiKey, fetchImpl: opts.fetchImpl, timeoutMs: 15_000 };
+    this.entitlements = new EntitlementsApi(this.http);
+    this.products = new ProductsApi(this.http);
+    this.offerings = new OfferingsApi(this.http);
   }
 
   /**
@@ -32,9 +49,9 @@ export class EntitleHubServer {
    *
    * Three modes (pick one):
    *   • Google (validated): { store:"play", storeProductId, purchaseToken, isSubscription }
-   *   • Apple (validated):  { signedTransaction }   — store/product are read from the JWS
-   *   • Stripe (validated): { stripeSubscriptionId } — validated via your Stripe secret key
-   *   • Trusted server-report: { store, storeProductId } — no store validation; only when you've
+   *   • Apple (validated):  { signedTransaction }  , store/product are read from the JWS
+   *   • Stripe (validated): { stripeSubscriptionId }, validated via your Stripe secret key
+   *   • Trusted server-report: { store, storeProductId }, no store validation; only when you've
    *     already validated the receipt elsewhere.
    */
   async reportPurchase(appUserId: string, purchase: PurchaseInput): Promise<CustomerInfo> {

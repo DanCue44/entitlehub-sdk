@@ -1,4 +1,4 @@
-// Wire types — these mirror the EntitleHub public API (/v1) responses exactly.
+// Wire types: these mirror the EntitleHub public API (/v1) responses exactly.
 
 export type Store = "app_store" | "play" | "stripe" | "web" | "amazon";
 export type EntitlementStatus = "active" | "trial" | "grace" | "expired" | "revoked";

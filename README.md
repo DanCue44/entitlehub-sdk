@@ -5,7 +5,7 @@
 [![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](https://www.npmjs.com/package/@entitlehub/sdk)
 [![license MIT](https://img.shields.io/npm/l/@entitlehub/sdk)](./LICENSE)
 
-One entitlement API across **App Store, Google Play, Stripe, and web** — for browsers, React Native, Expo, and Node. Stop checking raw product IDs; ask *"what is this user entitled to right now?"*
+One entitlement API across **App Store, Google Play, Stripe, and web**, for browsers, React Native, Expo, and Node. Stop checking raw product IDs; ask *"what is this user entitled to right now?"*
 
 > Docs: **[entitlehub.com/docs](https://entitlehub.com/docs)** · [REST API](https://entitlehub.com/docs/api) · [Migrating from RevenueCat](https://entitlehub.com/docs/migrating-from-revenuecat)
 
@@ -15,7 +15,7 @@ npm install @entitlehub/sdk
 
 Zero dependencies. Uses the global `fetch` (Node 18+, all modern browsers, React Native, Expo).
 
-## Client (in your app) — publishable key
+## Client (in your app) (publishable key)
 
 Reads only. Safe to ship in your app. **Never put a secret (`sk_`) key here.**
 
@@ -66,7 +66,7 @@ eh.logOut();                 // forget cached info
 | `getOfferings()` | `Offerings` | Entitlements + products, for building a paywall. |
 | `addCustomerInfoUpdateListener(fn)` | `() => void` | Returns an unsubscribe. |
 
-## Server (in your backend) — secret key
+## Server (in your backend) (secret key)
 
 Report purchases and grant entitlements. **Server only.**
 
@@ -76,17 +76,17 @@ import { EntitleHubServer } from "@entitlehub/sdk";
 const eh = new EntitleHubServer({ apiKey: process.env.ENTITLEHUB_SECRET_KEY! });
 
 // After the store purchase is confirmed on-device, report it from your server.
-// Google Play — validated (EntitleHub verifies the token with your Play service account):
+// Google Play: validated (EntitleHub verifies the token with your Play service account):
 const info = await eh.reportPurchase(userId, {
   store: "play", storeProductId: "pro_monthly",
   purchaseToken: playToken, isSubscription: true,
 });
 info.isActive("pro"); // → true
 
-// Apple StoreKit 2 — validated (product / environment read from the signed JWS):
+// Apple StoreKit 2: validated (product / environment read from the signed JWS):
 await eh.reportPurchase(userId, { store: "app_store", storeProductId: "", signedTransaction: jws });
 
-// Trusted server-report (no store validation — only if you validated the receipt elsewhere):
+// Trusted server-report (no store validation, only if you validated the receipt elsewhere):
 await eh.reportPurchase(userId, { store: "app_store", storeProductId: "pro_monthly" });
 
 // Grant directly (promo / comp / support), no purchase:
@@ -99,6 +99,41 @@ await eh.grantEntitlement(userId, "pro", { durationDays: 30 });
 | `grantEntitlement(userId, id, { durationDays?, isSandbox? })` | `CustomerInfo` |
 | `getCustomerInfo(userId)` / `check(userId, id)` | `CustomerInfo` / `CheckResult` |
 
+### Catalog: entitlements, products, offerings
+
+Set up and change your catalog from code. Refs take the id **or** the key / SKU / identifier you
+already have. Every create has an `ensure` twin that returns the existing row instead of failing,
+so a setup script can run on every deploy.
+
+```ts
+await eh.entitlements.ensure({ key: "pro", name: "Pro" });
+
+await eh.products.ensure({
+  store: "stripe", storeProductId: "price_1Q...", type: "subscription", duration: "P1M",
+  priceMicros: 9_990_000, entitlements: ["pro"],
+});
+
+// Remap (future purchases only; access already granted is untouched):
+await eh.products.update({ store: "play", storeProductId: "pro_monthly" }, { entitlements: ["pro", "team"] });
+await eh.entitlements.attachProducts("team", ["price_1Q..."]);
+
+// Retire a SKU you no longer sell. Existing subscribers keep access and renewals:
+await eh.products.archive("price_old");
+
+await eh.offerings.create({
+  identifier: "default", isCurrent: true, metadata: { headline: "Go Pro" },
+  packages: [{ identifier: "monthly", product: "price_1Q..." }],
+});
+```
+
+| Namespace | Methods |
+|---|---|
+| `eh.entitlements` | `list` `get` `create` `ensure` `update` `delete` `products` `attachProducts` `detachProducts` `archive` `unarchive` |
+| `eh.products` | `list` `get` `create` `ensure` `update` `delete` `attachEntitlements` `detachEntitlements` `archive` `unarchive` |
+| `eh.offerings` | `list` `get` `create` `update` `delete` `archive` `unarchive` `packages` `addPackage` `updatePackage` `deletePackage` |
+
+Full reference: [entitlehub.com/docs/catalog-api](https://entitlehub.com/docs/catalog-api).
+
 ## Already have an IAP setup?
 
 Keep making the actual store purchase with your existing IAP flow (StoreKit / Play Billing /
@@ -108,6 +143,8 @@ with `getCustomerInfo()`. See the full guide at [entitlehub.com/docs](https://en
 ## Errors
 
 Every failure throws an `EntitleHubError` with `.status` and `.code` (`auth` | `http` | `network` | `config`).
+When the API sends its own machine-readable code it is on `.apiCode` (e.g. `product_exists`,
+`ambiguous_product`, `rate_limited`), with the full payload on `.body`.
 
 ```ts
 import { EntitleHubError } from "@entitlehub/sdk";

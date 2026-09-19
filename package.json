@@ -1,7 +1,7 @@
 {
   "name": "@entitlehub/sdk",
-  "version": "0.2.0",
-  "description": "EntitleHub SDK — one entitlement API across App Store, Google Play, Stripe, and web. Works in browsers, React Native, Expo, and Node.",
+  "version": "0.3.0",
+  "description": "EntitleHub SDK: one entitlement API across App Store, Google Play, Stripe, and web. Works in browsers, React Native, Expo, and Node.",
   "keywords": [
     "entitlehub",
     "entitlements",
@@ -37,7 +37,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --clean --minify",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "node --test \"test/*.test.mjs\"",
     "prepublishOnly": "npm run build"
   },
   "engines": {

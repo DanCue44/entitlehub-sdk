@@ -13,13 +13,18 @@ export interface EntitleHubOptions {
   fetchImpl?: typeof fetch;
   /** How long a cached CustomerInfo is considered fresh, ms (default 5 min). */
   cacheTtlMs?: number;
+  /**
+   * Identifies the calling SDK as `name/version`, e.g. "react-native/0.1.5". Wrapper SDKs set this
+   * so the dashboard can flag an out-of-date SDK. Defaults to this package's own name/version.
+   */
+  client?: string;
 }
 
 export type CustomerInfoListener = (info: CustomerInfo) => void;
 export type FetchPolicy = "cache-first" | "network-only";
 
 /**
- * The client-side EntitleHub SDK — configure once, then ask "what is this user entitled to?".
+ * The client-side EntitleHub SDK: configure once, then ask "what is this user entitled to?".
  * Safe for browsers, React Native, and Expo (publishable key only; never ship a secret key).
  *
  *   const eh = new EntitleHub({ apiKey: "pk_live_…", appUserId: user.id });
@@ -37,11 +42,11 @@ export class EntitleHub {
     if (!opts.apiKey) throw new EntitleHubError("apiKey is required.", 0, "config");
     if (!opts.appUserId) throw new EntitleHubError("appUserId is required.", 0, "config");
     if (opts.apiKey.startsWith("sk_")) {
-      throw new EntitleHubError("Never use a secret (sk_) key in the client SDK — use your publishable (pk_) key.", 0, "config");
+      throw new EntitleHubError("Never use a secret (sk_) key in the client SDK. Use your publishable (pk_) key.", 0, "config");
     }
     this.appUserId = opts.appUserId;
     this.cacheTtlMs = opts.cacheTtlMs ?? 5 * 60_000;
-    this.http = { baseUrl: opts.baseUrl ?? "https://entitlehub.com/v1", apiKey: opts.apiKey, fetchImpl: opts.fetchImpl, timeoutMs: 15_000 };
+    this.http = { baseUrl: opts.baseUrl ?? "https://entitlehub.com/v1", apiKey: opts.apiKey, fetchImpl: opts.fetchImpl, timeoutMs: 15_000, client: opts.client };
   }
 
   /** The current app user id. */
@@ -88,7 +93,7 @@ export class EntitleHub {
     });
   }
 
-  /** The project's entitlements + products — for building a paywall. */
+  /** The project's entitlements + products: for building a paywall. */
   async getOfferings(): Promise<Offerings> {
     return request<Offerings>(this.http, "GET", "/offerings");
   }

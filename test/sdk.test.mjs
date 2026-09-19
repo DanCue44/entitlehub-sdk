@@ -63,3 +63,48 @@ test("addCustomerInfoUpdateListener fires and unsubscribes", async () => {
   await eh.getCustomerInfo({ fetchPolicy: "network-only" });
   assert.equal(seen, 1, "listener fired once, not after unsubscribe");
 });
+
+test("catalog: products.create sends snake_case, a store-qualified ref routes with ?store", async () => {
+  const calls = [];
+  const eh = new EntitleHubServer({
+    apiKey: "sk_test_x", baseUrl: "https://x/v1",
+    fetchImpl: fakeFetch((url, init) => { calls.push({ url, method: init.method, body: init.body && JSON.parse(init.body) }); return { status: 201, body: { object: "product" } }; }),
+  });
+  await eh.products.create({ store: "stripe", storeProductId: "price_1", type: "subscription", duration: "P1M", priceMicros: 9_990_000, entitlements: ["pro"] });
+  assert.equal(calls[0].method, "POST");
+  assert.equal(calls[0].url, "https://x/v1/products");
+  assert.deepEqual(calls[0].body, { store: "stripe", store_product_id: "price_1", type: "subscription", duration: "P1M", price_micros: 9_990_000, entitlements: ["pro"] });
+
+  await eh.products.update({ store: "play", storeProductId: "pro.monthly" }, { entitlements: ["pro", "team"] });
+  assert.equal(calls[1].method, "PATCH");
+  assert.equal(calls[1].url, "https://x/v1/products/pro.monthly?store=play");
+
+  await eh.products.attachEntitlements({ store: "play", storeProductId: "pro.monthly" }, ["team"]);
+  assert.equal(calls[2].url, "https://x/v1/products/pro.monthly/attach_entitlements?store=play");
+
+  await eh.entitlements.attachProducts("pro", ["prod_1", { store: "app_store", storeProductId: "com.x.pro" }]);
+  assert.deepEqual(calls[3].body, { products: ["prod_1", { store: "app_store", store_product_id: "com.x.pro" }] });
+});
+
+test("catalog: ensure returns the existing row on a 409 *_exists, and rethrows anything else", async () => {
+  const existing = { object: "entitlement", id: "ent_1", key: "pro" };
+  let reply = { status: 409, body: { error: "exists", code: "entitlement_exists", existing } };
+  const eh = new EntitleHubServer({ apiKey: "sk_test_x", baseUrl: "https://x/v1", fetchImpl: fakeFetch(() => reply) });
+  assert.deepEqual(await eh.entitlements.ensure({ key: "pro" }), existing);
+
+  reply = { status: 400, body: { error: "bad key", code: "invalid_request" } };
+  await assert.rejects(() => eh.entitlements.ensure({ key: "bad key" }),
+    (e) => e instanceof EntitleHubError && e.status === 400 && e.apiCode === "invalid_request" && e.code === "http");
+});
+
+test("catalog: API error codes and context surface on EntitleHubError", async () => {
+  const eh = new EntitleHubServer({
+    apiKey: "sk_test_x", baseUrl: "https://x/v1",
+    fetchImpl: fakeFetch(() => ({ status: 409, body: { error: "ambiguous", code: "ambiguous_product", candidates: [{ id: "p1" }, { id: "p2" }] } })),
+  });
+  await assert.rejects(() => eh.products.get("pro_monthly"), (e) => {
+    assert.equal(e.apiCode, "ambiguous_product");
+    assert.equal(e.body.candidates.length, 2);
+    return true;
+  });
+});

@@ -2,30 +2,42 @@
 
 All notable changes to `@entitlehub/sdk`. Adheres to [Semantic Versioning](https://semver.org/).
 
-## 0.2.0 — 2026-07-18
+## 0.3.0 (2026-09-19)
 
 ### Added
-- Client `EntitleHub.reportPurchase(...)` — report a **validated** purchase (Apple JWS / Google
+- Catalog API on `EntitleHubServer`: `eh.entitlements`, `eh.products`, `eh.offerings`. Create,
+  update, archive and delete entitlements, products and offerings; attach/detach mappings from
+  either side; manage paywall packages. Refs take ids or the key / SKU / identifier you already
+  have. See [the Catalog API docs](https://entitlehub.com/docs/catalog-api).
+- `ensure(...)` on entitlements and products: create, or return the existing row, so a catalog
+  setup script can run on every deploy.
+- `EntitleHubError.apiCode` and `.body`: the API's machine-readable error code (e.g.
+  `product_exists`, `ambiguous_product`, `rate_limited`) and the full error payload.
+
+## 0.2.0 (2026-07-18)
+
+### Added
+- Client `EntitleHub.reportPurchase(...)`: report a **validated** purchase (Apple JWS / Google
   token / Stripe subscription) directly from the app with your publishable key; updates the cache
   and notifies listeners. Validation makes a forged receipt impossible, so no secret key is needed
   on the client. (The trusted server-report mode still requires a secret key.)
 - Powers the new [`@entitlehub/react-native`](https://www.npmjs.com/package/@entitlehub/react-native)
   purchase SDK.
 
-## 0.1.3 — 2026-07-18
+## 0.1.3 (2026-07-18)
 
 ### Added
-- `reportPurchase` accepts `stripeSubscriptionId` — EntitleHub validates the subscription against
+- `reportPurchase` accepts `stripeSubscriptionId`, EntitleHub validates the subscription against
   your Stripe secret key (active/trialing → granted, current period end as the expiry).
 
-## 0.1.2 — 2026-07-18
+## 0.1.2 (2026-07-18)
 
 ### Changed
 - The SDK now lives in its own public repository:
   [github.com/DanCue44/entitlehub-sdk](https://github.com/DanCue44/entitlehub-sdk) (MIT). Open-source
   SDK, closed backend. `repository` / `bugs` metadata point there.
 
-## 0.1.1 — 2026-07-18
+## 0.1.1 (2026-07-18)
 
 ### Added
 - README badges (npm version, types, zero-deps, license) and docs links.
@@ -36,14 +48,14 @@ All notable changes to `@entitlehub/sdk`. Adheres to [Semantic Versioning](https
   + `isSubscription`), Apple StoreKit 2 (validated via `signedTransaction`), and trusted
   server-report.
 
-## 0.1.0 — 2026-07-18
+## 0.1.0 (2026-07-18)
 
 Initial release.
 
-- **`EntitleHub`** (client, publishable key) — `getCustomerInfo`, `isEntitled`,
+- **`EntitleHub`** (client, publishable key): `getCustomerInfo`, `isEntitled`,
   `checkEntitlement`, `getOfferings`, `logIn` / `logOut`, `addCustomerInfoUpdateListener`.
   Cached CustomerInfo; safe for browsers, React Native, and Expo.
-- **`EntitleHubServer`** (server, secret key) — `reportPurchase` (Apple JWS / Google Play
+- **`EntitleHubServer`** (server, secret key): `reportPurchase` (Apple JWS / Google Play
   token / trusted), `grantEntitlement`, `getCustomerInfo`, `check`.
 - **`CustomerInfo`** ergonomic wrapper; **`EntitleHubError`** with `.status` / `.code`.
 - Zero dependencies; ESM + CJS + bundled type declarations.

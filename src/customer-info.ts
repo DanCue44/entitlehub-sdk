@@ -1,7 +1,7 @@
 import type { ActiveEntitlement, CustomerInfoResponse } from "./types.js";
 
 /**
- * Ergonomic wrapper around a subscriber's active entitlements — the object your UI reads.
+ * Ergonomic wrapper around a subscriber's active entitlements, the object your UI reads.
  *
  *   const info = await eh.getCustomerInfo();
  *   if (info.isActive("pro")) showProFeatures();
